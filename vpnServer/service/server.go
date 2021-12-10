@@ -1,13 +1,26 @@
 package service
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"myVpn/vpnServer/utils"
 	"net"
 )
+
+var  (
+	passwd string = "123456"
+	//miyao string
+)
+
+func testAA(){
+	//miyao = utils.Get16MD5encode(passwd)
+	dd := utils.Get16MD5encode(fmt.Sprintf("%v%v", utils.Get16MD5encode(passwd), passwd))
+	log.Println(fmt.Sprintf("获取到秘钥为---------------- [%v]", dd))
+}
 
 func Process(client net.Conn) {
 	log.Println(fmt.Sprintf("有请求进来 %v", client))
@@ -36,14 +49,36 @@ func socks5Auth(client net.Conn) (err error) {
 
 	log.Println("开始进行权限认证")
 
-	// 读取 VER 和 NMETHODS
-	n, err := io.ReadFull(client, buf[:2])
-	if n != 2 {
-		return errors.New("reading header: " + err.Error())
+	//n, err := io.ReadFull(client, buf[:1])
+	//if n != 1 {
+	//	return errors.New("reading header: " + err.Error())
+	//}
+
+	bufContent, err := readAll(client)
+	if err != nil {
+		return err
 	}
 
-	log.Println(fmt.Sprintf("读取到n=[%v]个字节", n))
-	log.Println(fmt.Sprintf("读取到buf， 包含了VER 和 NMETHODS  %v", buf[:n]))
+	jieContent, err := utils.AesDecryptCFB(bufContent[16:], []byte("123456"), bufContent[:16])
+	if err != nil {
+		log.Println(fmt.Sprintf("解密失败 err %v", err))
+		return err
+	}
+
+	log.Println(fmt.Sprintf("读取到[%v]", bufContent))
+	log.Println(fmt.Sprintf("解密消息[%v]个字节", jieContent))
+
+	//log.Println(fmt.Sprintf("读取到n=[%v]个字节", n))
+	//log.Println(buf[:n])
+	//log.Println(fmt.Sprintf("读取到buf， 包含了VER 和 NMETHODS  %s", string(buf[:n])))
+
+	client.Close()
+	return errors.New("AAAA")
+
+	//解密
+	//v3, err := utils.DeAesGcm(miyao, string(buf[:n]), aad)
+	//t.Log(fmt.Sprintf("解密: %q , %q\n\n", v3, err))
+
 
 	ver, nMethods := int(buf[0]), int(buf[1])
 	if ver != 5 {
@@ -53,7 +88,7 @@ func socks5Auth(client net.Conn) (err error) {
 	log.Println(fmt.Sprintf("ver = [%v], nMethods = [%v]", ver, nMethods))
 
 	// 读取 METHODS 列表
-	n, err = io.ReadFull(client, buf[:nMethods])
+	n, err := io.ReadFull(client, buf[:nMethods])
 	if n != nMethods {
 		return errors.New("reading methods: " + err.Error())
 	}
@@ -68,6 +103,22 @@ func socks5Auth(client net.Conn) (err error) {
 	}
 
 	return nil
+}
+
+func readAll(conn net.Conn) ([]byte, error) {
+
+	defer conn.Close()
+
+	var buf bytes.Buffer
+
+	_, err := io.Copy(&buf, conn)
+	if err != nil {
+		// Error handler
+		return nil, err
+	}
+
+
+	return buf.Bytes(), nil
 }
 
 func socks5Connect(client net.Conn) (net.Conn, error) {
