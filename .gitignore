@@ -22,6 +22,9 @@ vendor/
 *.a
 *.so
 
+vpnServer
+vpnClient
+
 # OS General
 Thumbs.db
 .DS_Store
