@@ -43,6 +43,11 @@ func Process(client net.Conn) {
 	Socks5Forward(client, target)
 }
 
+func getKey() string {
+	before16Entry := utils.Get16MD5encode(passwd)
+	after16Entry := utils.Get16MD5encode(fmt.Sprintf("%v%v", before16Entry, passwd))
+	return after16Entry
+}
 
 func socks5Auth(client net.Conn) (err error) {
 	buf := make([]byte, 256)
@@ -59,14 +64,34 @@ func socks5Auth(client net.Conn) (err error) {
 		return err
 	}
 
-	jieContent, err := utils.AesDecryptCFB(bufContent[16:], []byte("123456"), bufContent[:16])
-	if err != nil {
-		log.Println(fmt.Sprintf("解密失败 err %v", err))
-		return err
-	}
+	//获取key
+	key := getKey()
+	log.Println(fmt.Sprintf("获取到key = [%v]", key))
 
-	log.Println(fmt.Sprintf("读取到[%v]", bufContent))
-	log.Println(fmt.Sprintf("解密消息[%v]个字节", jieContent))
+	// salt
+	salt := bufContent[:32]
+	log.Println(fmt.Sprintf("salt [%v]", salt))
+
+	//// subKey
+	//subKey :=
+	//
+	//if string(buf[:32]) == calculate32Entry {
+	//	log.Println("计算成功----批完正确")
+	//}else{
+	//	log.Println("匹配失败")
+	//}
+
+
+
+	//
+	//jieContent, err := utils.AesDecryptCFB(bufContent[16:], []byte(passwd), bufContent[:16])
+	//if err != nil {
+	//	log.Println(fmt.Sprintf("解密失败 err %v", err))
+	//	return err
+	//}
+	//
+	//log.Println(fmt.Sprintf("读取到[%v]", bufContent))
+	//log.Println(fmt.Sprintf("解密消息[%v]个字节", jieContent))
 
 	//log.Println(fmt.Sprintf("读取到n=[%v]个字节", n))
 	//log.Println(buf[:n])
@@ -108,7 +133,7 @@ func socks5Auth(client net.Conn) (err error) {
 func readAll(conn net.Conn) ([]byte, error) {
 
 	defer conn.Close()
-
+	log.Println("读取消息")
 	var buf bytes.Buffer
 
 	_, err := io.Copy(&buf, conn)
@@ -117,7 +142,7 @@ func readAll(conn net.Conn) ([]byte, error) {
 		return nil, err
 	}
 
-
+	log.Println(fmt.Sprintf("读取到内容[%v]", buf.String()))
 	return buf.Bytes(), nil
 }
 
